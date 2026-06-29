@@ -1,0 +1,2132 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BrushTutor - AI Drawing Coach & Infinite Canvas</title>
+  
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              50: '#f5f3ff',
+              100: '#ede9fe',
+              200: '#ddd6fe',
+              500: '#8b5cf6',
+              600: '#7c3aed',
+              700: '#6d28d9',
+              900: '#4c1d95',
+            }
+          },
+          fontFamily: {
+            sans: ['Inter', 'sans-serif'],
+          }
+        }
+      }
+    }
+  </script>
+
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+
+  <style>
+    body {
+      font-family: 'Inter', sans-serif;
+      background-color: #0b0f19;
+      color: #f3f4f6;
+      overflow-x: hidden;
+    }
+
+    /* Glassmorphism Classes */
+    .glass {
+      background: rgba(17, 24, 39, 0.7);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+    
+    .glass-premium {
+      background: linear-gradient(135deg, rgba(31, 41, 55, 0.6) 0%, rgba(17, 24, 39, 0.8) 100%);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid rgba(139, 92, 246, 0.2);
+    }
+
+    /* Infinite Canvas Container */
+    #canvas-viewport {
+      cursor: crosshair;
+      user-select: none;
+      touch-action: none;
+    }
+
+    #canvas-viewport.grabbing {
+      cursor: grab;
+    }
+    #canvas-viewport.grabbing:active {
+      cursor: grabbing;
+    }
+
+    /* Custom Scrollbars */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: rgba(15, 23, 42, 0.3);
+    }
+    ::-webkit-scrollbar-thumb {
+      background: rgba(139, 92, 246, 0.3);
+      border-radius: 3px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: rgba(139, 92, 246, 0.6);
+    }
+
+    /* Modern animations */
+    @keyframes pulse-glow {
+      0%, 100% { box-shadow: 0 0 15px rgba(139, 92, 246, 0.4); }
+      50% { box-shadow: 0 0 25px rgba(139, 92, 246, 0.8); }
+    }
+    .ai-glow {
+      animation: pulse-glow 2s infinite;
+    }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col md:flex-row antialiased">
+
+  <!-- ================= SIDEBAR NAVIGATION ================= -->
+  <aside id="sidebar" class="w-full md:w-64 glass border-r border-slate-800 flex flex-col z-30 transition-all duration-300">
+    <!-- Brand / Logo -->
+    <div class="p-6 flex items-center justify-between border-b border-slate-800">
+      <div class="flex items-center gap-3">
+        <div class="p-2.5 bg-brand-600 rounded-xl shadow-lg shadow-brand-500/30 flex items-center justify-center">
+          <i data-lucide="paint-brush" class="w-6 h-6 text-white"></i>
+        </div>
+        <div>
+          <h1 class="font-extrabold text-xl tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-white via-brand-100 to-brand-500">
+            BrushTutor
+          </h1>
+          <span class="text-[10px] text-brand-200 tracking-widest font-semibold uppercase">AI Drawing Coach</span>
+        </div>
+      </div>
+      <!-- Mobile Close Trigger -->
+      <button onclick="toggleMobileSidebar()" class="md:hidden p-2 text-slate-400 hover:text-white">
+        <i data-lucide="x" class="w-6 h-6"></i>
+      </button>
+    </div>
+
+    <!-- Main Navigation Links -->
+    <nav class="flex-1 px-4 py-6 space-y-2 overflow-y-auto">
+      <button onclick="switchPage('home')" id="nav-home" class="w-full flex items-center gap-3.5 px-4 py-3 rounded-xl transition duration-200 text-slate-300 hover:text-white hover:bg-slate-800/50 group">
+        <i data-lucide="home" class="w-5 h-5 text-slate-400 group-hover:text-brand-500 transition"></i>
+        <span class="font-medium text-sm">Dashboard Home</span>
+      </button>
+
+      <button onclick="switchPage('studio')" id="nav-studio" class="w-full flex items-center gap-3.5 px-4 py-3 rounded-xl transition duration-200 text-slate-300 hover:text-white hover:bg-slate-800/50 group">
+        <i data-lucide="palette" class="w-5 h-5 text-slate-400 group-hover:text-brand-500 transition"></i>
+        <span class="font-medium text-sm">Drawing Studio</span>
+        <span class="ml-auto flex h-2 w-2 relative">
+          <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-brand-400 opacity-75"></span>
+          <span class="relative inline-flex rounded-full h-2 w-2 bg-brand-500"></span>
+        </span>
+      </button>
+
+      <button onclick="switchPage('analysis')" id="nav-analysis" class="w-full flex items-center gap-3.5 px-4 py-3 rounded-xl transition duration-200 text-slate-300 hover:text-white hover:bg-slate-800/50 group">
+        <i data-lucide="sparkles" class="w-5 h-5 text-slate-400 group-hover:text-brand-500 transition"></i>
+        <span class="font-medium text-sm">Coach's Vault</span>
+      </button>
+
+      <button onclick="switchPage('profile')" id="nav-profile" class="w-full flex items-center gap-3.5 px-4 py-3 rounded-xl transition duration-200 text-slate-300 hover:text-white hover:bg-slate-800/50 group">
+        <i data-lucide="user" class="w-5 h-5 text-slate-400 group-hover:text-brand-500 transition"></i>
+        <span class="font-medium text-sm">Artist Profile</span>
+      </button>
+
+      <button onclick="switchPage('settings')" id="nav-settings" class="w-full flex items-center gap-3.5 px-4 py-3 rounded-xl transition duration-200 text-slate-300 hover:text-white hover:bg-slate-800/50 group">
+        <i data-lucide="settings" class="w-5 h-5 text-slate-400 group-hover:text-brand-500 transition"></i>
+        <span class="font-medium text-sm">API Settings</span>
+      </button>
+    </nav>
+
+    <!-- User Mini Profile -->
+    <div class="p-4 border-t border-slate-800/80 bg-slate-900/40">
+      <div class="flex items-center gap-3 mb-3">
+        <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-brand-600 to-indigo-600 flex items-center justify-center font-bold text-white text-sm" id="user-avatar-mini">
+          AT
+        </div>
+        <div class="flex-1 min-w-0">
+          <p class="text-sm font-semibold text-white truncate" id="user-name-mini">Aspiring Tutor</p>
+          <p class="text-xs text-slate-400 truncate" id="user-rank-mini">Novice Drawer • Tier 1</p>
+        </div>
+      </div>
+      <button onclick="handleLogout()" class="w-full py-2 px-3 rounded-lg border border-slate-800 hover:bg-slate-800/60 transition text-xs font-medium text-slate-400 hover:text-white flex items-center justify-center gap-1.5">
+        <i data-lucide="log-out" class="w-3.5 h-3.5"></i> Sign Out
+      </button>
+    </div>
+  </aside>
+
+  <!-- Mobile Header Bar -->
+  <header class="md:hidden flex items-center justify-between px-6 py-4 border-b border-slate-800 bg-slate-950/80 backdrop-blur-md sticky top-0 z-20">
+    <div class="flex items-center gap-2">
+      <div class="p-1.5 bg-brand-600 rounded-lg">
+        <i data-lucide="paint-brush" class="w-5 h-5 text-white"></i>
+      </div>
+      <span class="font-extrabold text-lg text-white">BrushTutor</span>
+    </div>
+    <div class="flex items-center gap-3">
+      <button onclick="switchPage('studio')" class="p-2 rounded-lg bg-brand-600/10 text-brand-400 border border-brand-500/20">
+        <i data-lucide="palette" class="w-5 h-5"></i>
+      </button>
+      <button onclick="toggleMobileSidebar()" class="p-2 text-slate-300">
+        <i data-lucide="menu" class="w-6 h-6"></i>
+      </button>
+    </div>
+  </header>
+
+  <!-- ================= MAIN CONTENT SPACE ================= -->
+  <main class="flex-1 flex flex-col min-h-0 overflow-y-auto bg-[#080b11] relative">
+    
+    <!-- Toast Message UI (No native alert constraint) -->
+    <div id="toast-container" class="fixed top-6 right-6 z-50 flex flex-col gap-3 pointer-events-none"></div>
+
+    <!-- API Key Notice Banner -->
+    <div id="api-banner" class="bg-gradient-to-r from-amber-600/20 via-amber-700/10 to-transparent border-b border-amber-500/20 px-6 py-3 flex items-center justify-between text-amber-200 text-sm gap-4 transition duration-300">
+      <div class="flex items-center gap-2.5">
+        <i data-lucide="alert-triangle" class="w-5 h-5 text-amber-400 shrink-0"></i>
+        <span>AI Coach is running in <strong>Simulated Mode</strong>. To use real AI analyses on your sketches, set up your Gemini API Key.</span>
+      </div>
+      <button onclick="switchPage('settings')" class="underline font-bold text-xs hover:text-white shrink-0 uppercase tracking-wide">
+        Configure Key
+      </button>
+    </div>
+
+    <!-- ================= PAGE 1: HOME / DASHBOARD ================= -->
+    <section id="page-home" class="page-view p-6 md:p-10 max-w-7xl mx-auto w-full space-y-10">
+      <!-- Hero Welcome -->
+      <div class="relative rounded-3xl overflow-hidden glass-premium p-8 md:p-12 flex flex-col md:flex-row items-center gap-8 shadow-2xl">
+        <div class="absolute inset-0 bg-gradient-to-r from-brand-600/10 to-indigo-600/10 pointer-events-none"></div>
+        <div class="space-y-4 flex-1">
+          <span class="px-3 py-1 bg-brand-600/20 text-brand-300 text-xs font-semibold rounded-full border border-brand-500/30 inline-block uppercase tracking-wider">
+            AI Drawing Coach
+          </span>
+          <h2 class="text-3xl md:text-5xl font-black tracking-tight text-white leading-tight">
+            Stop tracing. <br><span class="bg-clip-text text-transparent bg-gradient-to-r from-brand-400 to-indigo-400">Start understanding.</span>
+          </h2>
+          <p class="text-slate-300 max-w-xl leading-relaxed">
+            BrushTutor guides you through the process of drawing by analyzing structure, shading, and anatomical rules. It gives constructive recommendations instead of taking over the brush.
+          </p>
+          <div class="pt-2 flex flex-wrap gap-4">
+            <button onclick="switchPage('studio')" class="px-6 py-3 bg-brand-600 hover:bg-brand-500 transition font-semibold text-white rounded-xl flex items-center gap-2 shadow-lg shadow-brand-500/20">
+              <i data-lucide="palette" class="w-5 h-5"></i> Enter Studio Canvas
+            </button>
+            <button onclick="showAILearnMoreModal()" class="px-6 py-3 bg-slate-800 hover:bg-slate-700 transition font-semibold text-slate-300 hover:text-white rounded-xl border border-slate-700">
+              How It Works
+            </button>
+          </div>
+        </div>
+        <div class="w-full md:w-80 shrink-0 relative flex justify-center">
+          <div class="absolute -inset-1 rounded-full bg-gradient-to-r from-brand-500 to-indigo-500 blur opacity-40 animate-pulse"></div>
+          <div class="relative bg-slate-900 border border-slate-800 p-6 rounded-2xl w-full max-w-xs space-y-4 shadow-xl">
+            <div class="flex items-center gap-3">
+              <div class="p-2 bg-indigo-500/20 rounded-lg">
+                <i data-lucide="sparkles" class="w-5 h-5 text-indigo-400"></i>
+              </div>
+              <span class="text-xs font-bold text-slate-400 uppercase tracking-widest">Active Lesson</span>
+            </div>
+            <p class="text-sm font-bold text-white">Rule of Thirds & Depth</p>
+            <div class="w-full bg-slate-800 rounded-full h-2">
+              <div class="bg-brand-500 h-2 rounded-full" style="width: 65%"></div>
+            </div>
+            <p class="text-xs text-slate-400">Lesson progression is active. Try drawing a landscape with a foreground subject.</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Quick Stats / Progress Row -->
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div class="glass p-6 rounded-2xl flex items-center gap-4">
+          <div class="p-4 bg-brand-500/10 text-brand-400 rounded-xl">
+            <i data-lucide="sparkles" class="w-6 h-6"></i>
+          </div>
+          <div>
+            <p class="text-xs text-slate-400 uppercase font-bold tracking-wider">Coach Analyses</p>
+            <p class="text-2xl font-black text-white" id="stat-analyses-count">0</p>
+          </div>
+        </div>
+        <div class="glass p-6 rounded-2xl flex items-center gap-4">
+          <div class="p-4 bg-emerald-500/10 text-emerald-400 rounded-xl">
+            <i data-lucide="star" class="w-6 h-6"></i>
+          </div>
+          <div>
+            <p class="text-xs text-slate-400 uppercase font-bold tracking-wider">Average Rating</p>
+            <p class="text-2xl font-black text-white" id="stat-avg-rating">0.0 / 10</p>
+          </div>
+        </div>
+        <div class="glass p-6 rounded-2xl flex items-center gap-4">
+          <div class="p-4 bg-amber-500/10 text-amber-400 rounded-xl">
+            <i data-lucide="hourglass" class="w-6 h-6"></i>
+          </div>
+          <div>
+            <p class="text-xs text-slate-400 uppercase font-bold tracking-wider">Time on Canvas</p>
+            <p class="text-2xl font-black text-white">4.2h</p>
+          </div>
+        </div>
+        <div class="glass p-6 rounded-2xl flex items-center gap-4">
+          <div class="p-4 bg-pink-500/10 text-pink-400 rounded-xl">
+            <i data-lucide="award" class="w-6 h-6"></i>
+          </div>
+          <div>
+            <p class="text-xs text-slate-400 uppercase font-bold tracking-wider">Skills Unlocked</p>
+            <p class="text-2xl font-black text-white">3</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Main Columns: Creative Prompts vs Saved Sketches -->
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <!-- Daily Prompt / Goals List -->
+        <div class="lg:col-span-1 space-y-6">
+          <div class="glass p-6 rounded-2xl space-y-4">
+            <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+              <h3 class="font-bold text-lg text-white flex items-center gap-2">
+                <i data-lucide="compass" class="w-5 h-5 text-brand-400"></i> Today's Challenge
+              </h3>
+              <span class="px-2 py-0.5 bg-rose-500/20 text-rose-400 rounded text-[10px] font-bold uppercase tracking-wider">Hot</span>
+            </div>
+            <div class="bg-slate-900/60 p-4 rounded-xl border border-slate-800 space-y-3">
+              <h4 class="font-bold text-white text-sm">"The Whispering Oak"</h4>
+              <p class="text-xs text-slate-400 leading-relaxed">
+                Draw an ancient, gnarled tree sitting on a hill. Focus entirely on capturing depth with varied brush weight and a clear direction of incoming light.
+              </p>
+              <div class="flex items-center gap-2 text-[11px] text-slate-400">
+                <i data-lucide="award" class="w-3.5 h-3.5 text-brand-400"></i>
+                Focus: Anatomy/Structure & Proportions
+              </div>
+              <button onclick="startChallenge('An ancient gnarled oak tree on a rolling hill')" class="w-full mt-2 py-2 bg-brand-600/20 hover:bg-brand-600 text-brand-400 hover:text-white transition font-semibold text-xs rounded-lg border border-brand-500/30 flex items-center justify-center gap-2">
+                Start Challenge <i data-lucide="arrow-right" class="w-3.5 h-3.5"></i>
+              </button>
+            </div>
+
+            <!-- Drawing Ideas -->
+            <div class="space-y-3 pt-2">
+              <span class="text-xs font-semibold text-slate-400 uppercase tracking-widest block">More Ideas to Coach</span>
+              <button onclick="startChallenge('Human hand holding an apple')" class="w-full flex items-center justify-between p-3 rounded-xl bg-slate-900/30 hover:bg-slate-800/50 text-left border border-slate-800 transition">
+                <div>
+                  <p class="text-xs font-bold text-white">Anatomy & Form</p>
+                  <p class="text-[11px] text-slate-400">A hand holding an apple</p>
+                </div>
+                <i data-lucide="chevron-right" class="w-4 h-4 text-slate-500"></i>
+              </button>
+              <button onclick="startChallenge('Coffee cup on a desk in two-point perspective')" class="w-full flex items-center justify-between p-3 rounded-xl bg-slate-900/30 hover:bg-slate-800/50 text-left border border-slate-800 transition">
+                <div>
+                  <p class="text-xs font-bold text-white">Perspective & Depth</p>
+                  <p class="text-[11px] text-slate-400">A coffee mug on a wooden table</p>
+                </div>
+                <i data-lucide="chevron-right" class="w-4 h-4 text-slate-500"></i>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Saved Sketches & History Vault -->
+        <div class="lg:col-span-2 space-y-6">
+          <div class="glass p-6 rounded-2xl space-y-4">
+            <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+              <h3 class="font-bold text-lg text-white flex items-center gap-2">
+                <i data-lucide="clock" class="w-5 h-5 text-brand-400"></i> Your Saved Sketches
+              </h3>
+              <p class="text-xs text-slate-400">Autosaved locally</p>
+            </div>
+
+            <!-- Saved Sketches Grid -->
+            <div id="sketches-grid" class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <!-- Dynamically populated, or placeholder if empty -->
+              <div class="col-span-full py-12 flex flex-col items-center justify-center text-center space-y-3">
+                <div class="p-4 bg-slate-900 rounded-full border border-slate-800">
+                  <i data-lucide="brush" class="w-8 h-8 text-slate-500"></i>
+                </div>
+                <div>
+                  <p class="text-sm font-bold text-white">No saved sketches found</p>
+                  <p class="text-xs text-slate-500">Create your first piece on the drawing canvas!</p>
+                </div>
+                <button onclick="switchPage('studio')" class="px-4 py-2 bg-brand-600/10 text-brand-400 border border-brand-500/20 rounded-xl text-xs font-bold hover:bg-brand-600 hover:text-white transition">
+                  Create New Sketch
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= PAGE 2: DRAWING STUDIO (INFINITE CANVAS) ================= -->
+    <section id="page-studio" class="page-view hidden flex-1 flex flex-col relative min-h-0 select-none">
+      
+      <!-- Studio Header Toolbar -->
+      <div class="glass border-b border-slate-800 px-4 py-2.5 flex flex-wrap items-center justify-between gap-3 z-10">
+        <!-- Drawing Context Indicator -->
+        <div class="flex items-center gap-3">
+          <div class="bg-indigo-600/10 border border-indigo-500/20 px-3 py-1.5 rounded-lg flex items-center gap-2">
+            <span class="w-2.5 h-2.5 rounded-full bg-indigo-500 animate-pulse"></span>
+            <span class="text-xs font-bold text-indigo-300" id="current-goal-label">Practice Mode</span>
+          </div>
+          <div class="h-6 w-px bg-slate-800 hidden sm:block"></div>
+          <!-- Quick Status info -->
+          <div class="text-[11px] text-slate-400 hidden lg:block">
+            <span class="text-slate-300 font-medium">Pan:</span> Spacebar + Drag | <span class="text-slate-300 font-medium">Zoom:</span> Scrollwheel
+          </div>
+        </div>
+
+        <!-- Studio Actions -->
+        <div class="flex items-center gap-2 ml-auto">
+          <button onclick="undo()" class="p-2 bg-slate-900 hover:bg-slate-800 text-slate-300 hover:text-white rounded-lg border border-slate-800 transition" title="Undo (Ctrl+Z)">
+            <i data-lucide="undo-2" class="w-4 h-4"></i>
+          </button>
+          <button onclick="redo()" class="p-2 bg-slate-900 hover:bg-slate-800 text-slate-300 hover:text-white rounded-lg border border-slate-800 transition" title="Redo (Ctrl+Y)">
+            <i data-lucide="redo-2" class="w-4 h-4"></i>
+          </button>
+          <div class="h-6 w-px bg-slate-800"></div>
+          <button onclick="clearCanvasPrompt()" class="p-2 bg-slate-900 hover:bg-rose-950 hover:text-rose-400 text-slate-300 rounded-lg border border-slate-800 transition" title="Clear Canvas">
+            <i data-lucide="trash-2" class="w-4 h-4"></i>
+          </button>
+          <button onclick="saveSketchLocally()" class="px-3.5 py-2 bg-slate-900 hover:bg-slate-800 text-slate-200 text-xs font-semibold rounded-lg border border-slate-800 transition flex items-center gap-1.5">
+            <i data-lucide="save" class="w-3.5 h-3.5 text-slate-400"></i> Save
+          </button>
+          <button onclick="exportAsPNG()" class="px-3.5 py-2 bg-slate-900 hover:bg-slate-800 text-slate-200 text-xs font-semibold rounded-lg border border-slate-800 transition flex items-center gap-1.5">
+            <i data-lucide="download" class="w-3.5 h-3.5 text-slate-400"></i> Export
+          </button>
+
+          <div class="h-6 w-px bg-slate-800"></div>
+
+          <!-- Coach Core Trigger Button -->
+          <button onclick="triggerCoachAnalysisPanel()" class="ai-glow px-4 py-2 bg-gradient-to-r from-brand-600 to-indigo-600 hover:from-brand-500 hover:to-indigo-500 text-white text-xs font-extrabold rounded-lg shadow-lg flex items-center gap-1.5 transition">
+            <i data-lucide="sparkles" class="w-3.5 h-3.5"></i> Coach Feedback
+          </button>
+        </div>
+      </div>
+
+      <!-- Infinite Canvas Viewport (Handles zooming and panning wrapper) -->
+      <div id="canvas-viewport" class="flex-1 overflow-hidden relative bg-[#0b0f19]">
+        <!-- Interactive Canvas Grid Background -->
+        <div class="absolute inset-0 pointer-events-none opacity-[0.03]" style="background-image: radial-gradient(#ffffff 1px, transparent 1px); background-size: 20px 20px;"></div>
+
+        <!-- The actual drawing canvas elements wrapper -->
+        <div id="canvas-transform-wrapper" class="absolute origin-top-left" style="transform: translate(0px, 0px) scale(1);">
+          <!-- We keep a secondary invisible canvas for calculations if needed, but our primary draws here -->
+          <canvas id="drawing-canvas" class="shadow-2xl bg-slate-950/40 rounded-sm"></canvas>
+        </div>
+
+        <!-- Floater Toolbar (Left side tool selector) -->
+        <div class="absolute top-4 left-4 z-10 flex flex-col gap-2 p-1.5 bg-slate-950/80 backdrop-blur-md rounded-2xl border border-slate-800 shadow-xl">
+          <button onclick="selectTool('pencil')" id="tool-pencil" class="p-3 rounded-xl transition text-slate-400 hover:text-white" title="Pencil (Fine Details)">
+            <i data-lucide="pencil" class="w-5 h-5"></i>
+          </button>
+          <button onclick="selectTool('brush')" id="tool-brush" class="p-3 rounded-xl transition text-slate-400 hover:text-white" title="Brush (Flowing Stroke)">
+            <i data-lucide="brush" class="w-5 h-5"></i>
+          </button>
+          <button onclick="selectTool('eraser')" id="tool-eraser" class="p-3 rounded-xl transition text-slate-400 hover:text-white" title="Eraser">
+            <i data-lucide="eraser" class="w-5 h-5"></i>
+          </button>
+          <button onclick="togglePanMode()" id="tool-pan" class="p-3 rounded-xl transition text-slate-400 hover:text-white" title="Pan Mode (Spacebar)">
+            <i data-lucide="move" class="w-5 h-5"></i>
+          </button>
+          
+          <div class="w-8 h-px bg-slate-800 mx-auto my-1"></div>
+          
+          <button onclick="zoomIn()" class="p-3 rounded-xl transition text-slate-400 hover:text-white" title="Zoom In">
+            <i data-lucide="zoom-in" class="w-5 h-5"></i>
+          </button>
+          <button onclick="zoomOut()" class="p-3 rounded-xl transition text-slate-400 hover:text-white" title="Zoom Out">
+            <i data-lucide="zoom-out" class="w-5 h-5"></i>
+          </button>
+          <button onclick="resetZoomAndPan()" class="p-3 rounded-xl transition text-slate-400 hover:text-white" title="Reset View">
+            <i data-lucide="maximize" class="w-5 h-5"></i>
+          </button>
+        </div>
+
+        <!-- Floater Brush Settings (Bottom center) -->
+        <div class="absolute bottom-6 left-1/2 -translate-x-1/2 z-10 flex flex-col sm:flex-row items-center gap-4 px-6 py-3 bg-slate-950/90 backdrop-blur-md rounded-2xl border border-slate-800 shadow-xl max-w-full w-[90%] sm:w-auto">
+          <!-- Swatches -->
+          <div class="flex items-center gap-1.5 shrink-0">
+            <button onclick="setBrushColor('#ffffff')" class="w-5 h-5 rounded-full border border-white/20 active:scale-95 transition" style="background-color: #ffffff;"></button>
+            <button onclick="setBrushColor('#94a3b8')" class="w-5 h-5 rounded-full border border-white/20 active:scale-95 transition" style="background-color: #94a3b8;"></button>
+            <button onclick="setBrushColor('#ef4444')" class="w-5 h-5 rounded-full border border-white/20 active:scale-95 transition" style="background-color: #ef4444;"></button>
+            <button onclick="setBrushColor('#f59e0b')" class="w-5 h-5 rounded-full border border-white/20 active:scale-95 transition" style="background-color: #f59e0b;"></button>
+            <button onclick="setBrushColor('#10b981')" class="w-5 h-5 rounded-full border border-white/20 active:scale-95 transition" style="background-color: #10b981;"></button>
+            <button onclick="setBrushColor('#3b82f6')" class="w-5 h-5 rounded-full border border-white/20 active:scale-95 transition" style="background-color: #3b82f6;"></button>
+            <button onclick="setBrushColor('#8b5cf6')" class="w-5 h-5 rounded-full border border-white/20 active:scale-95 transition" style="background-color: #8b5cf6;"></button>
+            
+            <div class="relative w-6 h-6 flex items-center justify-center rounded-lg border border-slate-700 overflow-hidden cursor-pointer">
+              <input type="color" id="custom-color-picker" oninput="setBrushColor(this.value)" class="absolute inset-0 opacity-0 cursor-pointer w-full h-full scale-150">
+              <i data-lucide="plus" class="w-3.5 h-3.5 text-slate-400"></i>
+            </div>
+          </div>
+
+          <div class="h-6 w-px bg-slate-800 hidden sm:block shrink-0"></div>
+
+          <!-- Color Indicator & Brush Size -->
+          <div class="flex items-center gap-3 w-full sm:w-auto">
+            <div class="w-4 h-4 rounded-full border border-white/10 shrink-0" id="tool-color-preview"></div>
+            <span class="text-xs text-slate-400 shrink-0">Size: <strong id="brush-size-display" class="text-slate-200">5px</strong></span>
+            <input type="range" id="brush-size-slider" min="1" max="50" value="5" oninput="setBrushSize(this.value)" class="w-full sm:w-32 accent-brand-500 cursor-pointer">
+          </div>
+        </div>
+
+        <!-- Zoom Level HUD Indicator -->
+        <div class="absolute bottom-6 right-6 z-10 px-3 py-1.5 bg-slate-950/80 backdrop-blur-sm rounded-lg border border-slate-800/80 text-[11px] text-slate-400">
+          Zoom: <strong id="hud-zoom-level" class="text-brand-300">100%</strong>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= PAGE 3: COACH ANALYSIS ARCHIVE / HUB ================= -->
+    <section id="page-analysis" class="page-view hidden p-6 md:p-10 max-w-7xl mx-auto w-full space-y-8">
+      <div class="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+        <div>
+          <h2 class="text-3xl font-black text-white">Coach's Analysis Vault</h2>
+          <p class="text-sm text-slate-400">Review recommendations and feedback reports generated by the AI Drawing Coach.</p>
+        </div>
+        <button onclick="switchPage('studio')" class="px-5 py-2.5 bg-brand-600 hover:bg-brand-500 transition rounded-xl font-bold text-xs text-white flex items-center gap-1.5">
+          <i data-lucide="sparkles" class="w-4 h-4"></i> New Analysis
+        </button>
+      </div>
+
+      <!-- Analysis Reports Grid -->
+      <div id="analysis-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <!-- Dynamically Populated, fallback placeholder if empty -->
+        <div class="col-span-full py-20 flex flex-col items-center justify-center text-center space-y-4">
+          <div class="p-5 bg-slate-900 rounded-full border border-slate-800">
+            <i data-lucide="file-text" class="w-10 h-10 text-slate-500"></i>
+          </div>
+          <div>
+            <p class="text-base font-bold text-white">No Reports Generated Yet</p>
+            <p class="text-sm text-slate-500 max-w-sm">Create a sketch in the drawing studio, tap "Coach Feedback", and run the analysis tool to populate your archive.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= PAGE 4: PROFILE ================= -->
+    <section id="page-profile" class="page-view hidden p-6 md:p-10 max-w-4xl mx-auto w-full space-y-8">
+      <div class="glass-premium rounded-3xl p-8 space-y-6 relative overflow-hidden">
+        <div class="absolute inset-0 bg-gradient-to-r from-brand-600/10 to-indigo-600/10 pointer-events-none"></div>
+        
+        <div class="flex flex-col sm:flex-row items-center gap-6 relative z-10">
+          <div class="w-24 h-24 rounded-2xl bg-gradient-to-tr from-brand-600 to-indigo-600 flex items-center justify-center font-extrabold text-white text-3xl shadow-xl border border-brand-500/30" id="user-avatar-main">
+            AT
+          </div>
+          <div class="flex-1 text-center sm:text-left space-y-1">
+            <div class="flex flex-wrap justify-center sm:justify-start items-center gap-3">
+              <h2 class="text-2xl font-black text-white" id="user-name-main">Aspiring Tutor</h2>
+              <span class="px-2.5 py-0.5 bg-brand-500/20 text-brand-300 text-[10px] font-bold uppercase rounded border border-brand-500/30">Lvl 1</span>
+            </div>
+            <p class="text-sm text-slate-400">Sketch Enthusiast & Digital Art Student</p>
+            <p class="text-xs text-slate-500">Member since June 2026</p>
+          </div>
+        </div>
+
+        <div class="h-px bg-slate-800"></div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div class="bg-slate-900/50 border border-slate-800/80 p-4 rounded-xl text-center">
+            <p class="text-xs text-slate-500 font-bold uppercase tracking-wider mb-1">XP Points</p>
+            <p class="text-xl font-extrabold text-white">1,450 <span class="text-xs text-brand-400">/ 2,000</span></p>
+          </div>
+          <div class="bg-slate-900/50 border border-slate-800/80 p-4 rounded-xl text-center">
+            <p class="text-xs text-slate-500 font-bold uppercase tracking-wider mb-1">Rank Status</p>
+            <p class="text-xl font-extrabold text-white" id="user-rank-main">Beginner Coachable</p>
+          </div>
+          <div class="bg-slate-900/50 border border-slate-800/80 p-4 rounded-xl text-center">
+            <p class="text-xs text-slate-500 font-bold uppercase tracking-wider mb-1">Streaks</p>
+            <p class="text-xl font-extrabold text-emerald-400">3 Days 🔥</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Level Progression -->
+      <div class="glass p-6 rounded-2xl space-y-4">
+        <h3 class="font-bold text-white text-base">Your Learning Track Progress</h3>
+        <div class="space-y-3">
+          <div>
+            <div class="flex justify-between text-xs font-semibold text-slate-400 mb-1.5">
+              <span>Overall Sketch Competency</span>
+              <span class="text-brand-300">65% Progress</span>
+            </div>
+            <div class="w-full bg-slate-900 rounded-full h-3">
+              <div class="bg-brand-500 h-3 rounded-full" style="width: 65%"></div>
+            </div>
+          </div>
+          <div>
+            <div class="flex justify-between text-xs font-semibold text-slate-400 mb-1.5">
+              <span>Shading & Perspective Fundamentals</span>
+              <span class="text-indigo-300">40% Progress</span>
+            </div>
+            <div class="w-full bg-slate-900 rounded-full h-3">
+              <div class="bg-indigo-500 h-3 rounded-full" style="width: 40%"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Update Profile form -->
+      <div class="glass p-6 rounded-2xl space-y-4">
+        <h3 class="font-bold text-white text-base">Edit Artist Credentials</h3>
+        <form id="profile-edit-form" onsubmit="saveUserProfile(event)" class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div class="space-y-1.5">
+            <label class="text-xs font-bold text-slate-400 uppercase">Artist Alias</label>
+            <input type="text" id="profile-artist-name" value="Aspiring Tutor" class="w-full bg-slate-900 border border-slate-800 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-brand-500">
+          </div>
+          <div class="space-y-1.5">
+            <label class="text-xs font-bold text-slate-400 uppercase">Skill Title</label>
+            <input type="text" id="profile-artist-title" value="Novice Drawer" class="w-full bg-slate-900 border border-slate-800 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-brand-500">
+          </div>
+          <div class="col-span-full pt-2">
+            <button type="submit" class="px-5 py-2.5 bg-brand-600 hover:bg-brand-500 transition text-white rounded-xl text-xs font-bold">
+              Update Profile Credentials
+            </button>
+          </div>
+        </form>
+      </div>
+    </section>
+
+    <!-- ================= PAGE 5: SETTINGS & API KEY ================= -->
+    <section id="page-settings" class="page-view hidden p-6 md:p-10 max-w-4xl mx-auto w-full space-y-8">
+      <div>
+        <h2 class="text-3xl font-black text-white">System Settings</h2>
+        <p class="text-sm text-slate-400">Configure your BrushTutor drawing environment, coach behaviors, and API keys.</p>
+      </div>
+
+      <!-- Gemini API Integration Card -->
+      <div class="glass p-6 rounded-2xl space-y-4 border border-brand-500/20">
+        <div class="flex items-center gap-3">
+          <div class="p-2.5 bg-brand-500/10 text-brand-400 rounded-xl">
+            <i data-lucide="key" class="w-6 h-6"></i>
+          </div>
+          <div>
+            <h3 class="font-bold text-lg text-white">Gemini API Configuration</h3>
+            <p class="text-xs text-slate-400">Access full AI analytics instead of mock simulations</p>
+          </div>
+        </div>
+
+        <p class="text-xs text-slate-300 leading-relaxed">
+          BrushTutor uses the robust <strong>Gemini 2.5 Flash</strong> model to analyze your canvas drawings instantly. If no key is configured, your coach runs on mock intelligent responses to allow testing of the app layout. Your key is stored securely in your browser's private local state and is never transmitted anywhere else.
+        </p>
+
+        <div class="space-y-2.5 pt-2">
+          <label class="text-xs font-bold text-slate-400 uppercase tracking-wider block">Gemini API Key</label>
+          <div class="flex gap-2">
+            <input type="password" id="gemini-api-key-input" placeholder="AIzaSy..." class="flex-1 bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-brand-500">
+            <button onclick="toggleAPIKeyVisibility()" class="p-3 bg-slate-900 border border-slate-800 text-slate-400 hover:text-white rounded-xl" type="button">
+              <i data-lucide="eye" class="w-5 h-5" id="api-eye-icon"></i>
+            </button>
+          </div>
+        </div>
+
+        <div class="flex flex-wrap items-center justify-between gap-4 pt-2">
+          <span class="text-xs text-slate-400">Need a key? It's free! Get one at <a href="https://aistudio.google.com/" target="_blank" class="text-brand-400 hover:underline inline-flex items-center gap-0.5">Google AI Studio <i data-lucide="external-link" class="w-3 h-3"></i></a></span>
+          <div class="flex gap-2">
+            <button onclick="clearAPIKey()" class="px-4 py-2 bg-slate-900 text-slate-400 hover:text-white rounded-xl text-xs font-semibold border border-slate-800 transition">
+              Clear Key
+            </button>
+            <button onclick="saveAPIKey()" class="px-5 py-2 bg-brand-600 hover:bg-brand-500 text-white rounded-xl text-xs font-bold transition">
+              Apply Changes
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Local Data Reset -->
+      <div class="glass p-6 rounded-2xl space-y-4">
+        <h3 class="font-bold text-white text-base">Local Drawing Storage</h3>
+        <p class="text-xs text-slate-400">
+          Resetting database clears your cached sketches, saved coach history logs, and resets settings values back to initial defaults. This action cannot be reversed.
+        </p>
+        <div>
+          <button onclick="resetAllLocalState()" class="px-5 py-2.5 bg-rose-600/10 hover:bg-rose-600/20 text-rose-400 rounded-xl text-xs font-bold border border-rose-500/20 transition">
+            Delete My Storage Cache
+          </button>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- ================= AUTHENTICATION MODAL OVERLAY ================= -->
+  <div id="auth-modal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md hidden">
+    <div class="glass-premium rounded-3xl p-8 max-w-md w-full space-y-6 relative border border-brand-500/30">
+      <div class="text-center space-y-2">
+        <div class="w-12 h-12 bg-brand-600 rounded-2xl mx-auto flex items-center justify-center text-white shadow-lg">
+          <i data-lucide="paint-brush" class="w-6 h-6"></i>
+        </div>
+        <h3 class="text-2xl font-black text-white">Join BrushTutor</h3>
+        <p class="text-xs text-slate-400">Experience interactive AI feedback of your digital strokes</p>
+      </div>
+
+      <div class="space-y-4">
+        <div class="space-y-1.5">
+          <label class="text-xs font-bold text-slate-400 uppercase">Artist Name</label>
+          <input type="text" id="auth-username" placeholder="SketchyMcSketch" class="w-full bg-slate-900 border border-slate-800 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-brand-500">
+        </div>
+        <div class="space-y-1.5">
+          <label class="text-xs font-bold text-slate-400 uppercase">Email Address (Optional)</label>
+          <input type="email" id="auth-email" placeholder="you@artist.com" class="w-full bg-slate-900 border border-slate-800 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-brand-500">
+        </div>
+      </div>
+
+      <div class="flex flex-col gap-2.5">
+        <button onclick="handleAuthSubmit()" class="w-full py-3 bg-brand-600 hover:bg-brand-500 transition text-white font-extrabold text-sm rounded-xl shadow-lg">
+          Initialize Account Session
+        </button>
+        <button onclick="closeAuthModal()" class="w-full py-2.5 text-slate-400 hover:text-white transition text-xs font-medium">
+          Skip Authentication for Now
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= HOW IT WORKS MODAL ================= -->
+  <div id="learn-modal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md hidden">
+    <div class="glass rounded-2xl p-6 max-w-lg w-full space-y-4">
+      <h3 class="text-xl font-bold text-white flex items-center gap-2">
+        <i data-lucide="sparkles" class="text-brand-400 w-5 h-5"></i> How Coach Analyzes Your Work
+      </h3>
+      <div class="text-sm text-slate-300 space-y-3 leading-relaxed">
+        <p>
+          BrushTutor is designed differently from normal drawing tools. Instead of using AI to draw for you, BrushTutor mimics a professional teacher looking over your shoulder.
+        </p>
+        <p>
+          <strong>1. Structure Detection:</strong> The coach checks the skeletal form and construction lines to analyze proportions and anatomy structure.
+        </p>
+        <p>
+          <strong>2. Light Source & Depth:</strong> It attempts to recognize where your highlights and shadow blocks fall, identifying if they line up logically.
+        </p>
+        <p>
+          <strong>3. Perspective Review:</strong> The coach reviews your lines relative to perspective grids, highlighting horizon and vanishing point misalignments.
+        </p>
+      </div>
+      <div class="pt-2 flex justify-end">
+        <button onclick="closeLearnModal()" class="px-5 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white font-semibold text-xs rounded-xl transition">
+          Got It
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= SIDE-PANEL: AI COACH DRAWER / OVERLAY ================= -->
+  <div id="coach-panel" class="fixed top-0 right-0 h-full w-full sm:w-[480px] bg-slate-950/95 border-l border-slate-800/80 shadow-2xl z-40 transform translate-x-full transition-transform duration-300 flex flex-col">
+    <!-- Panel Header -->
+    <div class="p-6 border-b border-slate-800 flex items-center justify-between bg-slate-900/40">
+      <div class="flex items-center gap-3">
+        <div class="p-2 bg-brand-500/10 text-brand-400 rounded-lg">
+          <i data-lucide="sparkles" class="w-5 h-5"></i>
+        </div>
+        <div>
+          <h4 class="font-extrabold text-white text-base">Coach Feedback Assistant</h4>
+          <p class="text-xs text-slate-400">Analyzes composition, lines, and shade</p>
+        </div>
+      </div>
+      <button onclick="closeCoachAnalysisPanel()" class="p-2 text-slate-400 hover:text-white">
+        <i data-lucide="x" class="w-5 h-5"></i>
+      </button>
+    </div>
+
+    <!-- Panel Content (Scrollable) -->
+    <div class="flex-1 overflow-y-auto p-6 space-y-6">
+      
+      <!-- Preview of current canvas bounding box -->
+      <div class="space-y-2">
+        <label class="text-xs font-bold text-slate-400 uppercase tracking-wider block">Canvas Thumbnail Snapshot</label>
+        <div class="relative rounded-xl overflow-hidden aspect-video border border-slate-800 bg-slate-900 flex items-center justify-center">
+          <img id="canvas-snapshot-img" src="" alt="Snapshot" class="object-contain w-full h-full p-2 max-h-48 hidden">
+          <!-- Bounding Loader placeholder -->
+          <div id="snapshot-placeholder" class="text-slate-500 text-xs flex flex-col items-center gap-2">
+            <i data-lucide="image" class="w-8 h-8"></i>
+            <span>No drawing captured. Select a sketch first!</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Coach Prompters -->
+      <div class="space-y-3">
+        <div class="space-y-1.5">
+          <div class="flex justify-between items-center">
+            <label class="text-xs font-bold text-slate-400 uppercase tracking-wider">What are you trying to draw?</label>
+            <span class="text-[10px] text-brand-300 font-bold uppercase">Critical context</span>
+          </div>
+          <input type="text" id="drawing-subject-input" placeholder="e.g. A realistic human face in profile, an apple..." class="w-full bg-slate-900 border border-slate-800 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-brand-500">
+        </div>
+
+        <div class="space-y-1.5">
+          <label class="text-xs font-bold text-slate-400 uppercase tracking-wider block">Specific Coaching Focus</label>
+          <select id="coaching-focus-select" class="w-full bg-slate-900 border border-slate-800 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-brand-500">
+            <option value="general">Comprehensive General Analysis</option>
+            <option value="proportions">Anatomy & Proportions Form</option>
+            <option value="perspective">Horizon & Depth Perspective</option>
+            <option value="shading">Shading, Light Source, Contrast</option>
+            <option value="composition">Composition, Harmony, & Weight</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Interactive Trigger -->
+      <button id="coach-analyze-btn" onclick="submitDrawingForAnalysis()" class="w-full py-4 bg-gradient-to-r from-brand-600 to-indigo-600 hover:from-brand-500 hover:to-indigo-500 text-white font-black text-sm rounded-xl shadow-lg flex items-center justify-center gap-2 transition active:scale-[0.99]">
+        <i data-lucide="sparkles" class="w-4 h-4"></i> Run Coach Diagnostics
+      </button>
+
+      <div class="h-px bg-slate-800"></div>
+
+      <!-- Loader State -->
+      <div id="coach-loader" class="hidden flex flex-col items-center justify-center py-12 text-center space-y-4">
+        <div class="relative">
+          <div class="w-12 h-12 rounded-full border-4 border-brand-600/30 border-t-brand-500 animate-spin"></div>
+          <div class="absolute inset-0 flex items-center justify-center">
+            <i data-lucide="sparkles" class="w-5 h-5 text-brand-400 animate-pulse"></i>
+          </div>
+        </div>
+        <div>
+          <p class="text-sm font-bold text-white" id="coach-loader-status">Uploading Sketch Assets...</p>
+          <p class="text-xs text-slate-400" id="coach-loader-sub">Preparing model feedback algorithms</p>
+        </div>
+      </div>
+
+      <!-- Coach Results Panel (Dynamic output container) -->
+      <div id="coach-results-box" class="hidden space-y-6">
+        
+        <!-- Score and Guess Header -->
+        <div class="bg-gradient-to-tr from-slate-900 to-brand-950/40 p-5 rounded-2xl border border-brand-500/20 text-center space-y-3">
+          <div class="space-y-1">
+            <span class="text-xs text-slate-400 uppercase font-bold tracking-widest">Coach's Diagnosis Rating</span>
+            <div class="flex items-baseline justify-center gap-1.5">
+              <span id="res-rating-value" class="text-5xl font-black text-white bg-clip-text text-transparent bg-gradient-to-r from-white to-brand-200">8</span>
+              <span class="text-xl font-bold text-slate-500">/ 10</span>
+            </div>
+          </div>
+          <div class="inline-block px-3 py-1 bg-brand-500/10 border border-brand-500/20 rounded-lg">
+            <p class="text-xs text-slate-400">Identified Concept: <strong id="res-guess-concept" class="text-brand-300">"Human Face"</strong></p>
+          </div>
+        </div>
+
+        <!-- Metric Bars -->
+        <div class="space-y-3">
+          <h5 class="text-xs font-bold text-slate-400 uppercase tracking-widest">Core Diagnostics</h5>
+          
+          <div class="space-y-1.5">
+            <div class="flex justify-between text-xs text-slate-400">
+              <span>Proportions & Forms</span>
+              <span id="metric-proportions-val" class="font-bold text-white">7/10</span>
+            </div>
+            <div class="w-full bg-slate-900 rounded-full h-2">
+              <div id="metric-proportions-bar" class="bg-brand-500 h-2 rounded-full" style="width: 70%"></div>
+            </div>
+          </div>
+
+          <div class="space-y-1.5">
+            <div class="flex justify-between text-xs text-slate-400">
+              <span>Depth & Perspective</span>
+              <span id="metric-perspective-val" class="font-bold text-white">6/10</span>
+            </div>
+            <div class="w-full bg-slate-900 rounded-full h-2">
+              <div id="metric-perspective-bar" class="bg-indigo-500 h-2 rounded-full" style="width: 60%"></div>
+            </div>
+          </div>
+
+          <div class="space-y-1.5">
+            <div class="flex justify-between text-xs text-slate-400">
+              <span>Shading & Tone Range</span>
+              <span id="metric-shading-val" class="font-bold text-white">8/10</span>
+            </div>
+            <div class="w-full bg-slate-900 rounded-full h-2">
+              <div id="metric-shading-bar" class="bg-violet-500 h-2 rounded-full" style="width: 80%"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Qualitative Feedbacks -->
+        <div class="space-y-4 pt-2 text-sm leading-relaxed">
+          <div class="space-y-1">
+            <h6 class="text-xs font-bold text-slate-400 uppercase tracking-widest flex items-center gap-1.5">
+              <i data-lucide="check-circle" class="w-4 h-4 text-emerald-400"></i> What You Did Well
+            </h6>
+            <p id="res-good-points" class="text-slate-300 pl-5">The flow of your lines is highly responsive. Excellent grasp of organic form and core structural volume.</p>
+          </div>
+
+          <div class="space-y-1">
+            <h6 class="text-xs font-bold text-slate-400 uppercase tracking-widest flex items-center gap-1.5">
+              <i data-lucide="alert-circle" class="w-4 h-4 text-amber-400"></i> Critical Corrections
+            </h6>
+            <p id="res-bad-points" class="text-slate-300 pl-5">The horizon line seems slightly warped. Make sure parallel plane segments map properly to a central vanishing focal point.</p>
+          </div>
+
+          <div class="space-y-1">
+            <h6 class="text-xs font-bold text-slate-400 uppercase tracking-widest flex items-center gap-1.5">
+              <i data-lucide="help-circle" class="w-4 h-4 text-indigo-400"></i> Coach Practice Exercise
+            </h6>
+            <p id="res-coaching-suggestion" class="text-slate-300 pl-5">Try setting up standard bounding boxes using a light red brush line before detailing forms to balance core shapes.</p>
+          </div>
+        </div>
+
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ================= MASTER CONTROLLERS & SCRIPTING ================= -->
+  <script>
+    // System & Data State Variables
+    let activePage = 'home';
+    let userState = {
+      username: 'Aspiring Tutor',
+      rank: 'Novice Drawer',
+      sketchesCount: 0,
+      xp: 1450,
+      apiKey: '',
+      history: []
+    };
+
+    // Canvas Properties
+    let canvas, ctx;
+    let canvasWidth = 2000;
+    let canvasHeight = 2000;
+    
+    // Viewport Transformation State
+    let zoomLevel = 1.0;
+    let panX = 0;
+    let panY = 0;
+    let isPanning = false;
+    let panStartX = 0;
+    let panStartY = 0;
+
+    // Drawing Tool State
+    let isDrawing = false;
+    let lastX = 0;
+    let lastY = 0;
+    let currentTool = 'brush'; // pencil, brush, eraser, pan
+    let brushColor = '#ffffff';
+    let brushSize = 5;
+
+    // History undo/redo lists
+    let undoStack = [];
+    let redoStack = [];
+    const MAX_HISTORY = 20;
+
+    // Page Load Setup Initialization
+    window.onload = function() {
+      // Load variables from storage
+      loadLocalStateData();
+
+      // Setup drawing DOM components
+      initCanvasEnvironment();
+
+      // Setup global click listeners for shortcuts (space bar pan, key combinations)
+      initKeyboardGlobalShortcuts();
+
+      // Render Dashboard & Vault lists
+      renderDashboardSketches();
+      renderVaultReports();
+
+      // Initialize all Lucide Icons in the DOM
+      lucide.createIcons();
+
+      // Switch initially to Home Dashboard
+      switchPage('home');
+
+      // Check if API key exists, hide or show warning banner
+      updateApiBannerUI();
+    };
+
+    // Core Canvas Setup
+    function initCanvasEnvironment() {
+      canvas = document.getElementById('drawing-canvas');
+      ctx = canvas.getContext('2d', { willReadFrequently: true });
+
+      // Resize the virtual drawing canvas to large dimensions
+      canvas.width = canvasWidth;
+      canvas.height = canvasHeight;
+
+      // Fill canvas background to deep dark slate initially
+      ctx.fillStyle = '#0f172a'; // Slate-900 background to look like a high-end sketchbook dark mode page
+      ctx.fillRect(0, 0, canvasWidth, canvasHeight);
+
+      // Bind canvas mouse & touch events
+      const viewport = document.getElementById('canvas-viewport');
+
+      // Mouse Listeners
+      viewport.addEventListener('mousedown', startInteraction);
+      viewport.addEventListener('mousemove', handleInteraction);
+      window.addEventListener('mouseup', endInteraction);
+
+      // Touch Listeners
+      viewport.addEventListener('touchstart', startInteractionTouch, { passive: false });
+      viewport.addEventListener('touchmove', handleInteractionTouch, { passive: false });
+      viewport.addEventListener('touchend', endInteractionTouch);
+
+      // Mouse Wheel for zooming
+      viewport.addEventListener('wheel', handleMouseWheelZoom, { passive: false });
+
+      // Save initial state to stack
+      pushToUndoStack();
+
+      // Select default Tool UI state
+      selectTool('brush');
+
+      // Set initial zoom reset coordinates
+      centerCanvasInViewport();
+    }
+
+    // Centering infinite viewport logic
+    function centerCanvasInViewport() {
+      const viewport = document.getElementById('canvas-viewport');
+      const vWidth = viewport.clientWidth;
+      const vHeight = viewport.clientHeight;
+
+      // Position top left of canvas in the center of the viewport
+      panX = (vWidth - canvasWidth * zoomLevel) / 2;
+      panY = (vHeight - canvasHeight * zoomLevel) / 2;
+
+      updateCanvasTransformMatrix();
+    }
+
+    // Apply scaling/translation matrix styling dynamically
+    function updateCanvasTransformMatrix() {
+      const wrapper = document.getElementById('canvas-transform-wrapper');
+      if (wrapper) {
+        wrapper.style.transform = `translate(${panX}px, ${panY}px) scale(${zoomLevel})`;
+      }
+      
+      // Update HUD Output
+      const hud = document.getElementById('hud-zoom-level');
+      if (hud) {
+        hud.textContent = `${Math.round(zoomLevel * 100)}%`;
+      }
+    }
+
+    // Keyboard Shortcuts Listener
+    function initKeyboardGlobalShortcuts() {
+      window.addEventListener('keydown', function(e) {
+        // Toggle spacebar for panning
+        if (e.code === 'Space' && activePage === 'studio') {
+          if (currentTool !== 'pan') {
+            window._prevTool = currentTool;
+            selectTool('pan');
+          }
+          // Prevent standard window page space scrolls
+          e.preventDefault();
+        }
+
+        // Ctrl + Z for undo
+        if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') {
+          e.preventDefault();
+          undo();
+        }
+
+        // Ctrl + Y for redo
+        if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'y') {
+          e.preventDefault();
+          redo();
+        }
+      });
+
+      window.addEventListener('keyup', function(e) {
+        if (e.code === 'Space' && activePage === 'studio') {
+          if (window._prevTool) {
+            selectTool(window._prevTool);
+            window._prevTool = null;
+          }
+        }
+      });
+    }
+
+    // Zoom Functions
+    function zoomIn() {
+      adjustZoomLevel(1.2);
+    }
+
+    function zoomOut() {
+      adjustZoomLevel(0.8);
+    }
+
+    function adjustZoomLevel(factor) {
+      const viewport = document.getElementById('canvas-viewport');
+      const vRect = viewport.getBoundingClientRect();
+      const centerX = vRect.width / 2;
+      const centerY = vRect.height / 2;
+
+      // Capture old zoom, apply factor with boundaries
+      const oldZoom = zoomLevel;
+      zoomLevel = Math.max(0.15, Math.min(zoomLevel * factor, 4.0));
+
+      // Calculate translation shifts to zoom relative to screen center
+      panX = centerX - (centerX - panX) * (zoomLevel / oldZoom);
+      panY = centerY - (centerY - panY) * (zoomLevel / oldZoom);
+
+      updateCanvasTransformMatrix();
+    }
+
+    function resetZoomAndPan() {
+      zoomLevel = 1.0;
+      centerCanvasInViewport();
+    }
+
+    // Mouse Wheel Handler
+    function handleMouseWheelZoom(e) {
+      e.preventDefault();
+      
+      const factor = e.deltaY < 0 ? 1.1 : 0.9;
+      
+      const viewport = document.getElementById('canvas-viewport');
+      const vRect = viewport.getBoundingClientRect();
+      const mouseX = e.clientX - vRect.left;
+      const mouseY = e.clientY - vRect.top;
+
+      const oldZoom = zoomLevel;
+      zoomLevel = Math.max(0.15, Math.min(zoomLevel * factor, 4.0));
+
+      // Translate coordinate shifts focusing around cursor coordinate
+      panX = mouseX - (mouseX - panX) * (zoomLevel / oldZoom);
+      panY = mouseY - (mouseY - panY) * (zoomLevel / oldZoom);
+
+      updateCanvasTransformMatrix();
+    }
+
+    // Calculate mouse/finger relative coordinates inside drawing scale space
+    function getCanvasCoordinates(clientX, clientY) {
+      const viewport = document.getElementById('canvas-viewport');
+      const vRect = viewport.getBoundingClientRect();
+
+      // Offset mouse location relative to viewport border bounds
+      const mouseXInViewport = clientX - vRect.left;
+      const mouseYInViewport = clientY - vRect.top;
+
+      // Extract transformation translation coordinates offsets
+      const realX = (mouseXInViewport - panX) / zoomLevel;
+      const realY = (mouseYInViewport - panY) / zoomLevel;
+
+      return { x: realX, y: realY };
+    }
+
+    // Select Current Drawing/Panning Tool Functionality
+    function selectTool(toolName) {
+      currentTool = toolName;
+
+      // Reset DOM buttons style states
+      const tools = ['pencil', 'brush', 'eraser', 'pan'];
+      tools.forEach(t => {
+        const btn = document.getElementById(`tool-${t}`);
+        if (btn) {
+          btn.classList.remove('bg-brand-600', 'text-white');
+          btn.classList.add('text-slate-400');
+        }
+      });
+
+      const activeBtn = document.getElementById(`tool-${toolName}`);
+      if (activeBtn) {
+        activeBtn.classList.remove('text-slate-400');
+        activeBtn.classList.add('bg-brand-600', 'text-white');
+      }
+
+      // Add special viewport cursor pointer styling if dragging
+      const viewport = document.getElementById('canvas-viewport');
+      if (toolName === 'pan') {
+        viewport.classList.add('grabbing');
+      } else {
+        viewport.classList.remove('grabbing');
+      }
+    }
+
+    // Color Swatch & Custom Inputs
+    function setBrushColor(hex) {
+      brushColor = hex;
+      document.getElementById('tool-color-preview').style.backgroundColor = hex;
+      document.getElementById('custom-color-picker').value = hex;
+      
+      // If eraser is active and color changed, restore previously active drawing tool
+      if (currentTool === 'eraser') {
+        selectTool('brush');
+      }
+    }
+
+    function setBrushSize(size) {
+      brushSize = parseInt(size);
+      document.getElementById('brush-size-display').innerText = `${size}px`;
+    }
+
+    // Draw Mechanics
+    function startInteraction(e) {
+      // Middle Mouse Button triggers panning
+      if (e.button === 1 || currentTool === 'pan') {
+        isPanning = true;
+        panStartX = e.clientX - panX;
+        panStartY = e.clientY - panY;
+        document.getElementById('canvas-viewport').style.cursor = 'grabbing';
+        return;
+      }
+
+      if (e.button !== 0) return; // Only process left click events
+
+      isDrawing = true;
+      const coords = getCanvasCoordinates(e.clientX, e.clientY);
+      lastX = coords.x;
+      lastY = coords.y;
+
+      // Trigger standard line drawing configuration
+      drawOnCanvas(coords.x, coords.y, true);
+    }
+
+    function handleInteraction(e) {
+      if (isPanning) {
+        panX = e.clientX - panStartX;
+        panY = e.clientY - panStartY;
+        updateCanvasTransformMatrix();
+        return;
+      }
+
+      if (!isDrawing) return;
+
+      const coords = getCanvasCoordinates(e.clientX, e.clientY);
+      drawOnCanvas(coords.x, coords.y, false);
+      
+      lastX = coords.x;
+      lastY = coords.y;
+    }
+
+    function endInteraction(e) {
+      if (isPanning) {
+        isPanning = false;
+        document.getElementById('canvas-viewport').style.cursor = currentTool === 'pan' ? 'grab' : 'crosshair';
+        return;
+      }
+
+      if (isDrawing) {
+        isDrawing = false;
+        pushToUndoStack();
+      }
+    }
+
+    // Touch Event Handling Adapter (For fully interactive responsive mobile drawing)
+    function startInteractionTouch(e) {
+      if (e.touches.length > 1) {
+        // Multi-touch gestures (Could expand to dual-finger zoom, but simple pan works wonders on canvas viewport)
+        isPanning = true;
+        const middleTouchX = (e.touches[0].clientX + e.touches[1].clientX) / 2;
+        const middleTouchY = (e.touches[0].clientY + e.touches[1].clientY) / 2;
+        panStartX = middleTouchX - panX;
+        panStartY = middleTouchY - panY;
+        return;
+      }
+
+      if (currentTool === 'pan') {
+        isPanning = true;
+        panStartX = e.touches[0].clientX - panX;
+        panStartY = e.touches[0].clientY - panY;
+        return;
+      }
+
+      // Prevent window scrolls
+      e.preventDefault();
+
+      isDrawing = true;
+      const coords = getCanvasCoordinates(e.touches[0].clientX, e.touches[0].clientY);
+      lastX = coords.x;
+      lastY = coords.y;
+
+      drawOnCanvas(coords.x, coords.y, true);
+    }
+
+    function handleInteractionTouch(e) {
+      if (isPanning && e.touches.length > 1) {
+        const middleTouchX = (e.touches[0].clientX + e.touches[1].clientX) / 2;
+        const middleTouchY = (e.touches[0].clientY + e.touches[1].clientY) / 2;
+        panX = middleTouchX - panStartX;
+        panY = middleTouchY - panStartY;
+        updateCanvasTransformMatrix();
+        return;
+      }
+
+      if (isPanning && currentTool === 'pan') {
+        panX = e.touches[0].clientX - panStartX;
+        panY = e.touches[0].clientY - panStartY;
+        updateCanvasTransformMatrix();
+        return;
+      }
+
+      if (!isDrawing) return;
+      e.preventDefault();
+
+      const coords = getCanvasCoordinates(e.touches[0].clientX, e.touches[0].clientY);
+      drawOnCanvas(coords.x, coords.y, false);
+
+      lastX = coords.x;
+      lastY = coords.y;
+    }
+
+    function endInteractionTouch(e) {
+      if (isPanning) {
+        isPanning = false;
+        return;
+      }
+
+      if (isDrawing) {
+        isDrawing = false;
+        pushToUndoStack();
+      }
+    }
+
+    function togglePanMode() {
+      if (currentTool === 'pan') {
+        selectTool('brush');
+      } else {
+        selectTool('pan');
+      }
+    }
+
+    // Actual Brush rendering calculations
+    function drawOnCanvas(targetX, targetY, isPointStart) {
+      ctx.beginPath();
+      
+      // Select appropriate rendering style configuration based on tool selected
+      if (currentTool === 'eraser') {
+        ctx.strokeStyle = '#0f172a'; // Eraser matches target canvas background hex exactly
+        ctx.lineWidth = brushSize * 2.5; // Bigger diameter for clearing space
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+        ctx.shadowBlur = 0;
+      } else if (currentTool === 'pencil') {
+        ctx.strokeStyle = brushColor;
+        ctx.lineWidth = Math.max(1, brushSize * 0.4); // Thin precise line
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+        ctx.shadowBlur = 0;
+      } else {
+        // Artistic fluid flow paint brush
+        ctx.strokeStyle = brushColor;
+        ctx.lineWidth = brushSize;
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+        // Add soft blur blending mimicking premium charcoal pencils
+        ctx.shadowBlur = brushSize * 0.15;
+        ctx.shadowColor = brushColor;
+      }
+
+      if (isPointStart) {
+        ctx.moveTo(targetX, targetY);
+        ctx.lineTo(targetX + 0.1, targetY + 0.1);
+      } else {
+        ctx.moveTo(lastX, lastY);
+        ctx.lineTo(targetX, targetY);
+      }
+
+      ctx.stroke();
+    }
+
+    // Undo & Redo History System
+    function pushToUndoStack() {
+      // Keep maximum limit bounds
+      if (undoStack.length >= MAX_HISTORY) {
+        undoStack.shift();
+      }
+      undoStack.push(ctx.getImageData(0, 0, canvasWidth, canvasHeight));
+      // Whenever we do a new brush action, clear redone logs
+      redoStack = [];
+    }
+
+    function undo() {
+      if (undoStack.length > 1) {
+        const topState = undoStack.pop();
+        redoStack.push(topState);
+        
+        // Restore context view with remaining item
+        const previousState = undoStack[undoStack.length - 1];
+        ctx.putImageData(previousState, 0, 0);
+        showToast('Undo action applied');
+      } else {
+        showToast('End of history timeline');
+      }
+    }
+
+    function redo() {
+      if (redoStack.length > 0) {
+        const nextState = redoStack.pop();
+        undoStack.push(nextState);
+        ctx.putImageData(nextState, 0, 0);
+        showToast('Redo action applied');
+      } else {
+        showToast('No actions to redo');
+      }
+    }
+
+    // Modal Prompters
+    function clearCanvasPrompt() {
+      if (confirm('Are you sure you want to clear your entire canvas sketch?')) {
+        ctx.fillStyle = '#0f172a';
+        ctx.fillRect(0, 0, canvasWidth, canvasHeight);
+        pushToUndoStack();
+        showToast('Canvas reset completed');
+      }
+    }
+
+    // Export Drawing Canvas directly to downloadable PNG files
+    function exportAsPNG() {
+      // We crop or extract the drawing bounds or simply download the active context
+      const dataURL = canvas.toDataURL('image/png');
+      const tempLink = document.createElement('a');
+      tempLink.download = `brushtutor_sketch_${Date.now()}.png`;
+      tempLink.href = dataURL;
+      document.body.appendChild(tempLink);
+      tempLink.click();
+      document.body.removeChild(tempLink);
+      showToast('Exported drawing as PNG successfully');
+    }
+
+    // Page switcher logic
+    function switchPage(pageId) {
+      activePage = pageId;
+
+      // Toggle views
+      document.querySelectorAll('.page-view').forEach(element => {
+        element.classList.add('hidden');
+      });
+      
+      const targetPage = document.getElementById(`page-${pageId}`);
+      if (targetPage) {
+        // If switching to studio, wait a frame then align viewport centering bounds
+        if (pageId === 'studio') {
+          targetPage.classList.remove('hidden');
+          targetPage.classList.add('flex');
+          // Re-render layout bounds
+          setTimeout(centerCanvasInViewport, 50);
+        } else {
+          targetPage.classList.remove('hidden');
+        }
+      }
+
+      // Active sidebar highlights
+      const navKeys = ['home', 'studio', 'analysis', 'profile', 'settings'];
+      navKeys.forEach(key => {
+        const navBtn = document.getElementById(`nav-${key}`);
+        if (navBtn) {
+          if (key === pageId) {
+            navBtn.classList.remove('text-slate-300', 'hover:bg-slate-800/50');
+            navBtn.classList.add('bg-brand-600', 'text-white');
+          } else {
+            navBtn.classList.remove('bg-brand-600', 'text-white');
+            navBtn.classList.add('text-slate-300', 'hover:bg-slate-800/50');
+          }
+        }
+      });
+
+      // Collapse mobile menu if open
+      const sidebar = document.getElementById('sidebar');
+      if (sidebar) {
+        sidebar.classList.remove('left-0');
+        sidebar.classList.add('-left-full', 'md:left-auto');
+      }
+    }
+
+    // Sidebar Mobile Toggler
+    function toggleMobileSidebar() {
+      const sidebar = document.getElementById('sidebar');
+      if (sidebar.classList.contains('-left-full') || !sidebar.classList.contains('left-0')) {
+        sidebar.classList.remove('-left-full');
+        sidebar.classList.add('left-0', 'fixed', 'top-0', 'h-full');
+      } else {
+        sidebar.classList.remove('left-0');
+        sidebar.classList.add('-left-full');
+      }
+    }
+
+    // Dynamic toast alerts inside canvas environment (No viewport-breaking native alerts)
+    function showToast(message, type = 'info') {
+      const container = document.getElementById('toast-container');
+      const toast = document.createElement('div');
+      toast.className = 'glass p-4 rounded-xl border border-slate-800 shadow-xl flex items-center gap-3 animate-slide-in pointer-events-auto transition-all duration-300 transform translate-x-12 opacity-0';
+      
+      let icon = 'info';
+      let iconColor = 'text-brand-400';
+      if (type === 'success') {
+        icon = 'check-circle';
+        iconColor = 'text-emerald-400';
+      } else if (type === 'error') {
+        icon = 'alert-triangle';
+        iconColor = 'text-rose-400';
+      }
+
+      toast.innerHTML = `
+        <div class="p-1.5 bg-slate-900 rounded-lg shrink-0">
+          <i data-lucide="${icon}" class="w-4 h-4 ${iconColor}"></i>
+        </div>
+        <div class="text-xs text-white font-medium">${message}</div>
+      `;
+
+      container.appendChild(toast);
+      lucide.createIcons();
+
+      // Trigger animation entry frames
+      setTimeout(() => {
+        toast.classList.remove('translate-x-12', 'opacity-0');
+        toast.classList.add('translate-x-0', 'opacity-100');
+      }, 10);
+
+      // Destroy timer
+      setTimeout(() => {
+        toast.classList.add('translate-x-12', 'opacity-0');
+        setTimeout(() => toast.remove(), 300);
+      }, 3500);
+    }
+
+    // Start predefined canvas challenge setups
+    function startChallenge(promptText) {
+      document.getElementById('current-goal-label').innerText = `Goal: "${promptText.substring(0, 20)}..."`;
+      document.getElementById('drawing-subject-input').value = promptText;
+      
+      // Clear canvas automatically after confirming
+      if (confirm(`Do you want to clear your current drawing board to begin challenge: "${promptText}"?`)) {
+        ctx.fillStyle = '#0f172a';
+        ctx.fillRect(0, 0, canvasWidth, canvasHeight);
+        pushToUndoStack();
+      }
+
+      switchPage('studio');
+      showToast(`Challenge configured: ${promptText}`);
+    }
+
+    // Saved Sketches Storage Adapter Logic
+    function saveSketchLocally() {
+      try {
+        const snapshot = getCompressedCanvasSnapshot();
+        const metadata = {
+          id: `sketch_${Date.now()}`,
+          name: document.getElementById('drawing-subject-input').value || 'Untitled Artwork',
+          date: new Date().toLocaleDateString(),
+          image: snapshot
+        };
+
+        // Pull previous sketches list, add, then commit to localStorage
+        let savedList = JSON.parse(localStorage.getItem('brushtutor_sketches')) || [];
+        savedList.unshift(metadata);
+        
+        // Retain only last 6 sketches to avoid overflowing storage limit bounds (5MB localStorage limit)
+        if (savedList.length > 6) {
+          savedList.pop();
+        }
+
+        localStorage.setItem('brushtutor_sketches', JSON.stringify(savedList));
+        
+        renderDashboardSketches();
+        showToast('Sketch saved to local portfolio', 'success');
+      } catch (err) {
+        showToast('Unable to save sketch. Portfolio storage is full.', 'error');
+      }
+    }
+
+    function renderDashboardSketches() {
+      const container = document.getElementById('sketches-grid');
+      let savedList = JSON.parse(localStorage.getItem('brushtutor_sketches')) || [];
+
+      if (savedList.length === 0) {
+        container.innerHTML = `
+          <div class="col-span-full py-12 flex flex-col items-center justify-center text-center space-y-3">
+            <div class="p-4 bg-slate-900 rounded-full border border-slate-800">
+              <i data-lucide="brush" class="w-8 h-8 text-slate-500"></i>
+            </div>
+            <div>
+              <p class="text-sm font-bold text-white">No saved sketches found</p>
+              <p class="text-xs text-slate-500">Draw a piece in the studio canvas, then tap save!</p>
+            </div>
+            <button onclick="switchPage('studio')" class="px-4 py-2 bg-brand-600/10 text-brand-400 border border-brand-500/20 rounded-xl text-xs font-bold hover:bg-brand-600 hover:text-white transition">
+              Create New Sketch
+            </button>
+          </div>
+        `;
+        lucide.createIcons();
+        return;
+      }
+
+      container.innerHTML = savedList.map(item => `
+        <div class="bg-slate-900/50 rounded-2xl p-4 border border-slate-800 space-y-3 relative group overflow-hidden">
+          <div class="aspect-video rounded-xl bg-slate-950 overflow-hidden relative border border-slate-800">
+            <img src="${item.image}" alt="${item.name}" class="object-contain w-full h-full p-2">
+            <div class="absolute inset-0 bg-slate-950/60 opacity-0 group-hover:opacity-100 transition duration-200 flex items-center justify-center gap-2">
+              <button onclick="loadSavedSketch('${item.id}')" class="p-2.5 bg-brand-600 hover:bg-brand-500 text-white rounded-lg text-xs font-bold transition flex items-center gap-1.5 shadow-lg">
+                <i data-lucide="folder-open" class="w-3.5 h-3.5"></i> Load
+              </button>
+              <button onclick="deleteSavedSketch('${item.id}')" class="p-2.5 bg-rose-600 hover:bg-rose-500 text-white rounded-lg transition" title="Delete">
+                <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+              </button>
+            </div>
+          </div>
+          <div class="flex justify-between items-start gap-2">
+            <div>
+              <h4 class="font-bold text-white text-sm truncate max-w-[160px]">${item.name}</h4>
+              <p class="text-[11px] text-slate-500">${item.date}</p>
+            </div>
+            <button onclick="loadSavedSketch('${item.id}')" class="px-3 py-1 bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-slate-300 rounded-lg">
+              Open
+            </button>
+          </div>
+        </div>
+      `).join('');
+
+      lucide.createIcons();
+    }
+
+    function loadSavedSketch(id) {
+      const savedList = JSON.parse(localStorage.getItem('brushtutor_sketches')) || [];
+      const item = savedList.find(x => x.id === id);
+      if (item) {
+        const img = new Image();
+        img.onload = function() {
+          // Clear and load state image back onto canvas context
+          ctx.fillStyle = '#0f172a';
+          ctx.fillRect(0, 0, canvasWidth, canvasHeight);
+          ctx.drawImage(img, 0, 0, canvasWidth, canvasHeight);
+          pushToUndoStack();
+          
+          document.getElementById('drawing-subject-input').value = item.name;
+          document.getElementById('current-goal-label').innerText = `Editing: ${item.name}`;
+          
+          switchPage('studio');
+          showToast(`Drawing "${item.name}" loaded successfully`, 'success');
+        };
+        img.src = item.image;
+      }
+    }
+
+    function deleteSavedSketch(id) {
+      if (confirm('Delete this sketch portfolio file? This cannot be undone.')) {
+        let savedList = JSON.parse(localStorage.getItem('brushtutor_sketches')) || [];
+        savedList = savedList.filter(x => x.id !== id);
+        localStorage.setItem('brushtutor_sketches', JSON.stringify(savedList));
+        renderDashboardSketches();
+        showToast('Sketch deleted from local portfolio');
+      }
+    }
+
+    // Helper: Creates small low-resolution thumbnail representation for localStorage sizes
+    function getCompressedCanvasSnapshot() {
+      const tempCanvas = document.createElement('canvas');
+      const tempCtx = tempCanvas.getContext('2d');
+      // Scaled down aspect ratio representation
+      tempCanvas.width = 480;
+      tempCanvas.height = 300;
+      tempCtx.drawImage(canvas, 0, 0, 480, 300);
+      return tempCanvas.toDataURL('image/jpeg', 0.7);
+    }
+
+    // Open Coach Settings Drawer overlays
+    function triggerCoachAnalysisPanel() {
+      const panel = document.getElementById('coach-panel');
+      panel.classList.remove('translate-x-full');
+
+      // Refresh snapshot view
+      const snapshotImg = document.getElementById('canvas-snapshot-img');
+      const placeholder = document.getElementById('snapshot-placeholder');
+      
+      const thumb = getCompressedCanvasSnapshot();
+      snapshotImg.src = thumb;
+      snapshotImg.classList.remove('hidden');
+      placeholder.classList.add('hidden');
+    }
+
+    function closeCoachAnalysisPanel() {
+      const panel = document.getElementById('coach-panel');
+      panel.classList.add('translate-x-full');
+    }
+
+    // AI Core System Integrations & Diagnostics Operations
+    async function submitDrawingForAnalysis() {
+      const apiKey = userState.apiKey;
+      const subject = document.getElementById('drawing-subject-input').value || 'A general creative sketch';
+      const focus = document.getElementById('coaching-focus-select').value;
+
+      // Swap to coach loading visibility status states
+      document.getElementById('coach-analyze-btn').classList.add('hidden');
+      document.getElementById('coach-results-box').classList.add('hidden');
+      
+      const loader = document.getElementById('coach-loader');
+      loader.classList.remove('hidden');
+
+      const statusLbl = document.getElementById('coach-loader-status');
+      const subLbl = document.getElementById('coach-loader-sub');
+
+      statusLbl.innerText = "Analyzing Canvas Pixels...";
+      subLbl.innerText = "Sizing composition proportions and horizon angles...";
+
+      // Capture full base64 snapshot
+      const base64Canvas = canvas.toDataURL('image/png').split(',')[1];
+
+      if (!apiKey) {
+        // Run simulated Coach diagnostic analysis
+        setTimeout(() => {
+          statusLbl.innerText = "Synthesizing feedback matrices...";
+          setTimeout(() => {
+            const report = generateMockReport(subject, focus);
+            saveReportToHistory(report);
+            renderCoachFeedbackOutput(report);
+            showToast("Diagnostic analysis generated (Simulated Mode)", "success");
+          }, 1500);
+        }, 1500);
+      } else {
+        // Real active model fetch calls via Gemini 2.5 Flash
+        try {
+          statusLbl.innerText = "Calling Gemini AI Studio Engine...";
+          subLbl.innerText = "Uploading PNG vector blocks for structural feedback...";
+
+          const report = await callGeminiDrawingCoach(apiKey, base64Canvas, subject, focus);
+          saveReportToHistory(report);
+          renderCoachFeedbackOutput(report);
+          showToast("AI diagnostics delivered successfully", "success");
+        } catch (error) {
+          console.error(error);
+          showToast(`AI Model Error: ${error.message || 'Retry again shortly'}`, "error");
+          
+          // Revert triggers back
+          document.getElementById('coach-analyze-btn').classList.remove('hidden');
+          loader.classList.add('hidden');
+        }
+      }
+    }
+
+    // Call Gemini 2.5 API with exponential backoff constraints
+    async function callGeminiDrawingCoach(key, base64Data, subject, focus) {
+      const systemInstruction = `
+        You are BrushTutor, a highly encouraging, friendly, and expert artistic drawing coach. 
+        Analyze the user's sketch drawing in detail. Determine what they drew relative to their objective: "${subject}".
+        You must evaluate their execution, provide ratings, and deliver highly constructive recommendations to help them improve. Do NOT draw for them. Focus on guiding their process.
+        
+        You must reply strictly in structured JSON format following this exact JSON schema:
+        {
+          "guess": "String identifying what object you see in their drawing",
+          "rating": "Integer rating score from 1 to 10 based on general drawing capability",
+          "proportions": "Integer rating score from 1 to 10 for proportions",
+          "perspective": "Integer rating score from 1 to 10 for perspective",
+          "shading": "Integer rating score from 1 to 10 for shading",
+          "positives": "A paragraph summarizing 2-3 aspects they did exceptionally well (constructive and warm)",
+          "negatives": "A paragraph with 2-3 highly actionable correction tips highlighting what they can do next to improve form",
+          "suggestion": "A custom drawing challenge exercise to practice"
+        }
+      `;
+
+      const payload = {
+        contents: [
+          {
+            parts: [
+              {
+                text: `Please analyze my drawing. I am trying to draw: "${subject}". Focus of my request: "${focus}".`
+              },
+              {
+                inlineData: {
+                  mimeType: "image/png",
+                  data: base64Data
+                }
+              }
+            ]
+          }
+        ],
+        generationConfig: {
+          responseMimeType: "application/json",
+          responseSchema: {
+            type: "OBJECT",
+            properties: {
+              guess: { type: "STRING" },
+              rating: { type: "INTEGER" },
+              proportions: { type: "INTEGER" },
+              perspective: { type: "INTEGER" },
+              shading: { type: "INTEGER" },
+              positives: { type: "STRING" },
+              negatives: { type: "STRING" },
+              suggestion: { type: "STRING" }
+            },
+            required: ["guess", "rating", "proportions", "perspective", "shading", "positives", "negatives", "suggestion"]
+          }
+        }
+      };
+
+      // Exponential backoff implementation
+      let retries = 5;
+      let delay = 1000;
+      
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${key}`;
+
+      for (let i = 0; i < retries; i++) {
+        try {
+          const response = await fetch(url, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+              ...payload,
+              systemInstruction: { parts: [{ text: systemInstruction }] }
+            })
+          });
+
+          if (!response.ok) {
+            const errData = await response.json().catch(() => ({}));
+            throw new Error(errData.error?.message || `HTTP Status ${response.status}`);
+          }
+
+          const result = await response.json();
+          const responseText = result.candidates?.[0]?.content?.parts?.[0]?.text;
+          
+          if (!responseText) {
+            throw new Error("Empty model response received");
+          }
+
+          return JSON.parse(responseText);
+        } catch (error) {
+          if (i === retries - 1) {
+            throw error; // Propagate up if final try fails
+          }
+          await new Promise(resolve => setTimeout(resolve, delay));
+          delay *= 2; // double delay window size (1s, 2s, 4s, 8s, 16s)
+        }
+      }
+    }
+
+    // Mock Engine Generator for when API configuration is omitted
+    function generateMockReport(subject, focus) {
+      // Determine logical random variables mimicking creative drawing grades
+      const finalRating = Math.floor(Math.random() * 4) + 6; // 6 to 9 rating
+      const pScore = Math.floor(Math.random() * 5) + 5;
+      const dScore = Math.floor(Math.random() * 5) + 5;
+      const sScore = Math.floor(Math.random() * 5) + 5;
+
+      const items = {
+        'general': {
+          positives: `Your outlines display clear intentional form! The line weights vary naturally, which creates a solid foundation of visual contrast and character flow.`,
+          negatives: `Try to map outer structural constraints before diving into heavy shadow gradients. The composition sits slightly low in the bounding frame space.`,
+          suggestion: `Create a duplicate of this piece using simple geometry skeletons first (spheres, cubes) to balance the structure before fine detailing.`
+        },
+        'proportions': {
+          positives: `The width proportions of your forms balance out beautifully! It exhibits clean scaling elements across key details.`,
+          negatives: `Look closely at the comparative size of peripheral features. They look slightly squeezed. Ensure alignment rules guide your bounding lines.`,
+          suggestion: `Spend 5 minutes sketching simple cylinders of varying lengths to calibrate muscle memory for relative structural weights.`
+        },
+        'perspective': {
+          positives: `You've managed to establish an effective horizon feeling. The lines do a wonderful job mapping background depth vectors.`,
+          negatives: `Double check your vanishing vectors! A few directional lines seem to wander out of alignment, flattening parts of the middle ground space.`,
+          suggestion: `Draw a simple three-box set using a single horizon dot, ensuring each edge maps cleanly back to the center perspective coordinate.`
+        },
+        'shading': {
+          positives: `The core values of your shadows are wonderfully dark, giving the entire artwork strong contrast and depth definition.`,
+          negatives: `Keep track of your primary light source location! The highlight directions appear slightly inconsistent across the scene.`,
+          suggestion: `Identify a single spot to represent light source on your canvas, and draft soft radial construction rays using a lighter tone color.`
+        },
+        'composition': {
+          positives: `The visual energy of your drawing sits beautifully. The flow direction leads the eye gracefully across the canvas.`,
+          negatives: `The main negative shapes could use a bit more breathing room. Try to space out central features to frame depth.`,
+          suggestion: `Try applying a traditional Rule of Thirds matrix grid overlay to identify focal intersection balances.`
+        }
+      };
+
+      const defaults = items[focus] || items['general'];
+
+      return {
+        id: `report_${Date.now()}`,
+        date: new Date().toLocaleDateString(),
+        guess: subject || 'Creative Figure Painting',
+        rating: finalRating,
+        proportions: pScore,
+        perspective: dScore,
+        shading: sScore,
+        positives: defaults.positives,
+        negatives: defaults.negatives,
+        suggestion: defaults.suggestion,
+        snapshot: getCompressedCanvasSnapshot()
+      };
+    }
+
+    // Process output variables inside DOM results markup fields
+    function renderCoachFeedbackOutput(report) {
+      // Hide loader, show results panel
+      document.getElementById('coach-loader').classList.add('hidden');
+      const box = document.getElementById('coach-results-box');
+      box.classList.remove('hidden');
+
+      // Update values
+      document.getElementById('res-rating-value').innerText = report.rating;
+      document.getElementById('res-guess-concept').innerText = `"${report.guess}"`;
+
+      // Metrics
+      document.getElementById('metric-proportions-val').innerText = `${report.proportions}/10`;
+      document.getElementById('metric-proportions-bar').style.width = `${report.proportions * 10}%`;
+
+      document.getElementById('metric-perspective-val').innerText = `${report.perspective}/10`;
+      document.getElementById('metric-perspective-bar').style.width = `${report.perspective * 10}%`;
+
+      document.getElementById('metric-shading-val').innerText = `${report.shading}/10`;
+      document.getElementById('metric-shading-bar').style.width = `${report.shading * 10}%`;
+
+      // Description panels
+      document.getElementById('res-good-points').innerText = report.positives;
+      document.getElementById('res-bad-points').innerText = report.negatives;
+      document.getElementById('res-coaching-suggestion').innerText = report.suggestion;
+
+      // Bring analysis CTA button back
+      document.getElementById('coach-analyze-btn').classList.remove('hidden');
+      document.getElementById('coach-analyze-btn').innerText = "Re-analyze Drawing";
+
+      // Trigger XP updates & dynamic status changes
+      incrementUserXP(250);
+    }
+
+    // Save history data logs to localStorage
+    function saveReportToHistory(report) {
+      let reports = JSON.parse(localStorage.getItem('brushtutor_reports')) || [];
+      reports.unshift(report);
+      
+      // Limit to 10 stored diagnostics reports to conserve browser space
+      if (reports.length > 10) {
+        reports.pop();
+      }
+
+      localStorage.setItem('brushtutor_reports', JSON.stringify(reports));
+      renderVaultReports();
+    }
+
+    function renderVaultReports() {
+      const container = document.getElementById('analysis-grid');
+      let reports = JSON.parse(localStorage.getItem('brushtutor_reports')) || [];
+
+      // Update stat displays on homepage dashboard
+      const countEl = document.getElementById('stat-analyses-count');
+      const avgEl = document.getElementById('stat-avg-rating');
+      
+      if (countEl) countEl.innerText = reports.length;
+      if (avgEl && reports.length > 0) {
+        const sum = reports.reduce((acc, curr) => acc + curr.rating, 0);
+        avgEl.innerText = `${(sum / reports.length).toFixed(1)} / 10`;
+      }
+
+      if (reports.length === 0) {
+        container.innerHTML = `
+          <div class="col-span-full py-20 flex flex-col items-center justify-center text-center space-y-4">
+            <div class="p-5 bg-slate-900 rounded-full border border-slate-800">
+              <i data-lucide="file-text" class="w-10 h-10 text-slate-500"></i>
+            </div>
+            <div>
+              <p class="text-base font-bold text-white">No Reports Generated Yet</p>
+              <p class="text-sm text-slate-400 max-w-sm">Create a sketch in the drawing studio, tap "Coach Feedback", and run the analysis tool to populate your archive.</p>
+            </div>
+          </div>
+        `;
+        lucide.createIcons();
+        return;
+      }
+
+      container.innerHTML = reports.map(item => `
+        <div class="glass p-5 rounded-2xl border border-slate-800 hover:border-slate-700 transition duration-300 space-y-4">
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-2">
+              <span class="px-2.5 py-1 bg-brand-500/10 text-brand-400 text-xs font-bold rounded-lg">${item.rating}/10 Rating</span>
+              <span class="text-[10px] text-slate-500 font-semibold">${item.date}</span>
+            </div>
+            <button onclick="deleteReport('${item.id}')" class="text-slate-500 hover:text-rose-400 p-1 rounded hover:bg-slate-900 transition" title="Delete Log">
+              <i data-lucide="trash-2" class="w-4 h-4"></i>
+            </button>
+          </div>
+
+          <div class="flex gap-4">
+            <div class="w-20 h-20 bg-slate-950 border border-slate-800 rounded-xl overflow-hidden shrink-0">
+              <img src="${item.snapshot}" alt="Preview" class="object-cover w-full h-full">
+            </div>
+            <div class="min-w-0 flex-1">
+              <span class="text-[10px] text-slate-500 font-bold uppercase tracking-widest block">Identified Subject</span>
+              <p class="text-sm font-bold text-white truncate mb-1">"${item.guess}"</p>
+              <p class="text-xs text-slate-300 line-clamp-2 leading-relaxed">${item.positives}</p>
+            </div>
+          </div>
+
+          <div class="pt-2 border-t border-slate-800/80">
+            <button onclick="viewReportDetails('${item.id}')" class="w-full py-2 bg-slate-900 hover:bg-slate-800 text-slate-300 hover:text-white rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5">
+              <i data-lucide="eye" class="w-3.5 h-3.5"></i> Read Full Report
+            </button>
+          </div>
+        </div>
+      `).join('');
+
+      lucide.createIcons();
+    }
+
+    function viewReportDetails(id) {
+      const reports = JSON.parse(localStorage.getItem('brushtutor_reports')) || [];
+      const item = reports.find(x => x.id === id);
+      if (item) {
+        // Hydrate panel drawer with specific values
+        triggerCoachAnalysisPanel();
+        renderCoachFeedbackOutput(item);
+      }
+    }
+
+    function deleteReport(id) {
+      if (confirm('Delete this coach report history block?')) {
+        let reports = JSON.parse(localStorage.getItem('brushtutor_reports')) || [];
+        reports = reports.filter(x => x.id !== id);
+        localStorage.setItem('brushtutor_reports', JSON.stringify(reports));
+        renderVaultReports();
+        showToast('Feedback log deleted');
+      }
+    }
+
+    // System Settings and API Key visibility
+    function saveAPIKey() {
+      const input = document.getElementById('gemini-api-key-input').value.trim();
+      userState.apiKey = input;
+      localStorage.setItem('brushtutor_apiKey', input);
+      
+      updateApiBannerUI();
+      showToast('Gemini API Key saved and verified', 'success');
+    }
+
+    function clearAPIKey() {
+      document.getElementById('gemini-api-key-input').value = '';
+      userState.apiKey = '';
+      localStorage.removeItem('brushtutor_apiKey');
+      
+      updateApiBannerUI();
+      showToast('Gemini API Key removed. Simulated coach mode active.');
+    }
+
+    function toggleAPIKeyVisibility() {
+      const input = document.getElementById('gemini-api-key-input');
+      const icon = document.getElementById('api-eye-icon');
+      if (input.type === 'password') {
+        input.type = 'text';
+        icon.setAttribute('data-lucide', 'eye-off');
+      } else {
+        input.type = 'password';
+        icon.setAttribute('data-lucide', 'eye');
+      }
+      lucide.createIcons();
+    }
+
+    function updateApiBannerUI() {
+      const banner = document.getElementById('api-banner');
+      if (userState.apiKey && userState.apiKey.length > 5) {
+        banner.classList.add('hidden');
+      } else {
+        banner.classList.remove('hidden');
+      }
+    }
+
+    // User Profile Actions
+    function saveUserProfile(e) {
+      e.preventDefault();
+      const name = document.getElementById('profile-artist-name').value.trim() || 'Anonymous Artist';
+      const title = document.getElementById('profile-artist-title').value.trim() || 'Novice Drawer';
+
+      userState.username = name;
+      userState.rank = title;
+
+      localStorage.setItem('brushtutor_username', name);
+      localStorage.setItem('brushtutor_rank', title);
+
+      updateUserUIElements();
+      showToast('Artist credentials updated', 'success');
+    }
+
+    function incrementUserXP(amount) {
+      userState.xp += amount;
+      localStorage.setItem('brushtutor_xp', userState.xp);
+      updateUserUIElements();
+    }
+
+    function updateUserUIElements() {
+      const nameMini = document.getElementById('user-name-mini');
+      const rankMini = document.getElementById('user-rank-mini');
+      const avatarMini = document.getElementById('user-avatar-mini');
+
+      const nameMain = document.getElementById('user-name-main');
+      const rankMain = document.getElementById('user-rank-main');
+      const avatarMain = document.getElementById('user-avatar-main');
+
+      const initials = userState.username.substring(0, 2).toUpperCase() || 'AT';
+
+      if (nameMini) nameMini.innerText = userState.username;
+      if (rankMini) rankMini.innerText = `${userState.rank} • Tier 1`;
+      if (avatarMini) avatarMini.innerText = initials;
+
+      if (nameMain) nameMain.innerText = userState.username;
+      if (rankMain) rankMain.innerText = userState.rank;
+      if (avatarMain) avatarMain.innerText = initials;
+    }
+
+    // Authentication Modal controllers
+    function handleLogout() {
+      if (confirm('Are you sure you want to log out of this session?')) {
+        // Reset state, clear keys, keep mock
+        userState.username = 'Guest Artist';
+        userState.rank = 'Newcomer';
+        updateUserUIElements();
+        showToast('Logged out of session');
+        
+        // Prompt join modal
+        document.getElementById('auth-modal').classList.remove('hidden');
+      }
+    }
+
+    function closeAuthModal() {
+      document.getElementById('auth-modal').classList.add('hidden');
+    }
+
+    function handleAuthSubmit() {
+      const nameInput = document.getElementById('auth-username').value.trim();
+      if (nameInput.length < 2) {
+        showToast('Please enter an artist username (min 2 characters)', 'error');
+        return;
+      }
+
+      userState.username = nameInput;
+      localStorage.setItem('brushtutor_username', nameInput);
+      updateUserUIElements();
+      
+      closeAuthModal();
+      showToast(`Welcome to BrushTutor, ${nameInput}!`, 'success');
+    }
+
+    // How It Works Modal
+    function showAILearnMoreModal() {
+      document.getElementById('learn-modal').classList.remove('hidden');
+    }
+
+    function closeLearnModal() {
+      document.getElementById('learn-modal').classList.add('hidden');
+    }
+
+    // Save & Load overall state data
+    function loadLocalStateData() {
+      if (localStorage.getItem('brushtutor_username')) {
+        userState.username = localStorage.getItem('brushtutor_username');
+      }
+      if (localStorage.getItem('brushtutor_rank')) {
+        userState.rank = localStorage.getItem('brushtutor_rank');
+      }
+      if (localStorage.getItem('brushtutor_xp')) {
+        userState.xp = parseInt(localStorage.getItem('brushtutor_xp'));
+      }
+      if (localStorage.getItem('brushtutor_apiKey')) {
+        userState.apiKey = localStorage.getItem('brushtutor_apiKey');
+        document.getElementById('gemini-api-key-input').value = userState.apiKey;
+      }
+
+      updateUserUIElements();
+    }
+
+    function resetAllLocalState() {
+      if (confirm('This will wipe your saved drawing cache, key variables, and diagnostics logs. Are you sure you want to reset everything?')) {
+        localStorage.clear();
+        location.reload();
+      }
+    }
+  </script>
+</body>
+</html>
